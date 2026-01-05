@@ -75,11 +75,15 @@ CREATE TABLE IF NOT EXISTS prayer_times (
     -- Fajr prayer
     fajr_time TIME NOT NULL,
     
-    -- Sunrise (forbidden prayer time)
-    sunrise_time TIME NOT NULL,
+    -- Sunrise forbidden period (start and end)
+    sunrise_start_time TIME NOT NULL,
+    sunrise_end_time TIME NULL,
+    sunrise_time TIME AS (sunrise_start_time) STORED COMMENT 'Alias for backward compatibility',
     
-    -- Istiwa/Zawaal (forbidden prayer time - solar noon)
-    istiwa_time TIME NOT NULL,
+    -- Istiwa/Zawaal forbidden period (start and end)
+    istiwa_start_time TIME NOT NULL,
+    istiwa_end_time TIME NULL,
+    istiwa_time TIME AS (istiwa_start_time) STORED COMMENT 'Alias for backward compatibility',
     
     -- Zohr/Dhuhr prayer
     zohr_time TIME NOT NULL,
@@ -88,8 +92,10 @@ CREATE TABLE IF NOT EXISTS prayer_times (
     asr_hanafi_time TIME NOT NULL,
     asr_shafii_time TIME NOT NULL,
     
-    -- Sunset (forbidden prayer time)
-    sunset_time TIME NOT NULL,
+    -- Sunset forbidden period (start and end)
+    sunset_start_time TIME NOT NULL,
+    sunset_end_time TIME NULL,
+    sunset_time TIME AS (sunset_start_time) STORED COMMENT 'Alias for backward compatibility',
     
     -- Maghrib prayer / Iftar time
     maghrib_hanafi_time TIME NOT NULL,

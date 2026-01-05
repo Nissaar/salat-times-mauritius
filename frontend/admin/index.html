@@ -133,11 +133,45 @@
 
                 <!-- Prayer Times Tab -->
                 <section id="prayer-timesTab" class="tab-content">
-                    <h2>Manage Prayer Times</h2>
+                    <h2>🕌 Prayer Times Management</h2>
                     
-                    <div class="card">
-                        <h3>📅 Select Month to Edit</h3>
-                        <div class="form-row">
+                    <div class="card prayer-times-header">
+                        <p class="help-text">
+                            <strong>ℹ️ Important Notes:</strong><br>
+                            • Prayer times are based on day-of-year (1-366), not calendar dates<br>
+                            • Same times repeat every year (e.g., Jan 15 is always day 15)<br>
+                            • Only enter times for Port Louis - other locations auto-adjust by altitude<br>
+                            • February 29 (day 60) is included for leap years<br>
+                            • Click on any day to edit or enter times<br>
+                            • <strong>CSV import is fastest for bulk entry (all 366 days at once)</strong>
+                        </p>
+                        
+                        <div class="stats-row">
+                            <div class="stat-item">
+                                <span class="stat-label">Days Filled:</span>
+                                <span class="stat-value" id="daysFilled">0 / 366</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Remaining:</span>
+                                <span class="stat-value" id="daysRemaining">365</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Progress:</span>
+                                <div class="progress-bar"><div id="progressFill" class="progress-fill" style="width: 0%"></div></div>
+                            </div>
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button id="csvImportBtn" class="btn btn-primary">📥 CSV Import</button>
+                            <button id="manualEntryBtn" class="btn btn-outline">✍️ Manual Entry</button>
+                            <button id="calendarViewBtn" class="btn btn-outline active">📅 Calendar View</button>
+                        </div>
+                    </div>
+
+                    <!-- Calendar View -->
+                    <div id="calendarView" class="card">
+                        <div class="month-selector">
+                            <button class="btn btn-small" id="prevMonth">‹</button>
                             <select id="monthSelect" class="form-control">
                                 <option value="1">January</option>
                                 <option value="2">February</option>
@@ -152,45 +186,117 @@
                                 <option value="11">November</option>
                                 <option value="12">December</option>
                             </select>
-                            <button id="loadMonthBtn" class="btn btn-primary">Load Month</button>
-                        </div>
-                    </div>
-
-                    <div class="card">
-                        <h3>⏰ Enter Prayer Times</h3>
-                        <p class="help-text">Enter times in HH:MM format (24-hour). Times repeat yearly based on day of year.</p>
-                        
-                        <div class="table-container">
-                            <table class="data-table" id="prayerTimesTable">
-                                <thead>
-                                    <tr>
-                                        <th>Day</th>
-                                        <th>Sehri</th>
-                                        <th>Fajr</th>
-                                        <th>Sunrise</th>
-                                        <th>Istiwa</th>
-                                        <th>Zohr</th>
-                                        <th>Asr (H)</th>
-                                        <th>Asr (S)</th>
-                                        <th>Sunset</th>
-                                        <th>Maghrib (H)</th>
-                                        <th>Maghrib (S)</th>
-                                        <th>Esha (H)</th>
-                                        <th>Esha (S)</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="prayerTimesBody">
-                                    <!-- Rows will be generated dynamically -->
-                                </tbody>
-                            </table>
+                            <button class="btn btn-small" id="nextMonth">›</button>
                         </div>
                         
-                        <div class="form-actions">
-                            <button id="savePrayerTimesBtn" class="btn btn-primary">💾 Save All Times</button>
-                            <span id="saveStatus" class="save-status"></span>
+                        <div id="calendarGrid" class="calendar-grid">
+                            <!-- Calendar days will be generated here -->
                         </div>
                     </div>
                 </section>
+
+                <!-- Prayer Time Edit Modal -->
+                <div id="editPrayerModal" class="modal hidden">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>⏰ Edit Prayer Times</h3>
+                            <button class="close-modal" onclick="closeEditModal()">✕</button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="modal-date-info">
+                                <strong id="modalDateLabel">January 1</strong> (Day <span id="modalDayOfYear">1</span>)
+                            </p>
+                            <form id="editPrayerForm">
+                                <div class="form-grid">
+                                    <!-- Row 1: Sehri and Fajr -->
+                                    <div class="form-group">
+                                        <label for="editSehri">Sehri End 🌙</label>
+                                        <input type="time" id="editSehri" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="editFajr">Fajr 🌅</label>
+                                        <input type="time" id="editFajr" class="form-control" required>
+                                    </div>
+                                    
+                                    <!-- Row 2: Sunrise Start and End -->
+                                    <div class="form-group">
+                                        <label for="editSunriseStart">Sunrise Start ☀️</label>
+                                        <input type="time" id="editSunriseStart" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="editSunriseEnd">Sunrise End ☀️</label>
+                                        <input type="time" id="editSunriseEnd" class="form-control" required>
+                                    </div>
+                                    
+                                    <!-- Row 3: Istiwa Start and End -->
+                                    <div class="form-group">
+                                        <label for="editIstiwaStart">Istiwa Start 🔆</label>
+                                        <input type="time" id="editIstiwaStart" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="editIstiwaEnd">Istiwa End 🔆</label>
+                                        <input type="time" id="editIstiwaEnd" class="form-control" required>
+                                    </div>
+                                    
+                                    <!-- Row 4: Zohr and Asr Hanafi -->
+                                    <div class="form-group">
+                                        <label for="editZohr">Zohr 🌤️</label>
+                                        <input type="time" id="editZohr" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="editAsrHanafi">Asr (Hanafi) 🕌</label>
+                                        <input type="time" id="editAsrHanafi" class="form-control" required>
+                                    </div>
+                                    
+                                    <!-- Row 5: Sunset Start and End -->
+                                    <div class="form-group">
+                                        <label for="editSunsetStart">Sunset Start 🌅</label>
+                                        <input type="time" id="editSunsetStart" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="editSunsetEnd">Sunset End 🌅</label>
+                                        <input type="time" id="editSunsetEnd" class="form-control" required>
+                                    </div>
+                                    
+                                    <!-- Row 6: Maghrib and Esha Hanafi -->
+                                    <div class="form-group">
+                                        <label for="editMaghrib">Maghrib / Iftar 🌆</label>
+                                        <input type="time" id="editMaghrib" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="editEshaHanafi">Esha (Hanafi) 🌃</label>
+                                        <input type="time" id="editEshaHanafi" class="form-control" required>
+                                    </div>
+                                </div>
+                                
+                                <!-- Shafi'i Section -->
+                                <div class="form-section-divider">
+                                    <span>Shafi'i Times</span>
+                                </div>
+                                
+                                <!-- Row 7: Shafi'i Asr and Esha - side by side -->
+                                <div class="form-grid shafii-row">
+                                    <div class="form-group">
+                                        <label for="editAsrShafii">Asr (Shafi'i) 🕌</label>
+                                        <input type="time" id="editAsrShafii" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="editEshaShafii">Esha (Shafi'i) 🌃</label>
+                                        <input type="time" id="editEshaShafii" class="form-control" required>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="editDay">
+                                <input type="hidden" id="editMonth">
+                                <input type="hidden" id="editDayOfYear">
+                                <div class="modal-actions">
+                                    <button type="submit" class="btn btn-primary">💾 Save</button>
+                                    <button type="button" class="btn btn-outline" onclick="closeEditModal()">Cancel</button>
+                                    <button type="button" class="btn btn-danger" id="deleteTimesBtn" style="margin-left: auto;">🗑️ Delete</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Users Tab -->
                 <section id="usersTab" class="tab-content">

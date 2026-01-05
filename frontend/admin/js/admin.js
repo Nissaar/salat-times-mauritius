@@ -72,12 +72,6 @@ function setupEventListeners() {
             switchTab(tab.dataset.tab);
         });
     });
-    
-    // Month select
-    document.getElementById('loadMonthBtn').addEventListener('click', loadMonth);
-    
-    // Save prayer times
-    document.getElementById('savePrayerTimesBtn').addEventListener('click', savePrayerTimes);
 }
 
 // Authentication
@@ -292,6 +286,9 @@ function switchTab(tabName) {
         case 'adjustments':
             loadAdjustments();
             break;
+        case 'prayer-times':
+            initPrayerTimesCalendar();
+            break;
     }
 }
 
@@ -406,127 +403,256 @@ async function editAdjustment(id) {
     }
 }
 
-// Prayer Times management
-async function loadMonth() {
-    const month = document.getElementById('monthSelect').value;
-    
-    try {
-        const response = await apiRequest(`/prayer-times/admin/month/${month}`);
-        const times = await response.json();
-        
-        generatePrayerTimesTable(parseInt(month), times);
-    } catch (error) {
-        console.error('Error loading month:', error);
-        generatePrayerTimesTable(parseInt(month), []);
-    }
-}
+// Prayer Times management - Calendar View
+let currentMonth = new Date().getMonth() + 1; // 1-12
+let prayerTimesData = {}; // Cache for loaded data
 
-function generatePrayerTimesTable(month, existingTimes) {
-    const daysInMonth = new Date(2024, month, 0).getDate(); // Using 2024 as reference (leap year)
-    const tbody = document.getElementById('prayerTimesBody');
-    
-    // Create lookup for existing times
-    const timesMap = {};
-    existingTimes.forEach(t => {
-        timesMap[t.day] = t;
-    });
-    
-    let html = '';
-    
-    for (let day = 1; day <= daysInMonth; day++) {
-        const existing = timesMap[day] || {};
-        const formatTime = (t) => t ? t.substring(0, 5) : '';
-        
-        html += `
-            <tr data-day="${day}" data-month="${month}">
-                <td><strong>${day}</strong></td>
-                <td><input type="text" class="time-input" data-field="sehri" value="${formatTime(existing.sehri_time)}" placeholder="05:00"></td>
-                <td><input type="text" class="time-input" data-field="fajr" value="${formatTime(existing.fajr_time)}" placeholder="05:15"></td>
-                <td><input type="text" class="time-input" data-field="sunrise" value="${formatTime(existing.sunrise_time)}" placeholder="06:30"></td>
-                <td><input type="text" class="time-input" data-field="istiwa" value="${formatTime(existing.istiwa_time)}" placeholder="12:15"></td>
-                <td><input type="text" class="time-input" data-field="zohr" value="${formatTime(existing.zohr_time)}" placeholder="12:20"></td>
-                <td><input type="text" class="time-input" data-field="asrHanafi" value="${formatTime(existing.asr_hanafi_time)}" placeholder="15:45"></td>
-                <td><input type="text" class="time-input" data-field="asrShafii" value="${formatTime(existing.asr_shafii_time)}" placeholder="15:15"></td>
-                <td><input type="text" class="time-input" data-field="sunset" value="${formatTime(existing.sunset_time)}" placeholder="18:00"></td>
-                <td><input type="text" class="time-input" data-field="maghribHanafi" value="${formatTime(existing.maghrib_hanafi_time)}" placeholder="18:05"></td>
-                <td><input type="text" class="time-input" data-field="maghribShafii" value="${formatTime(existing.maghrib_shafii_time)}" placeholder="18:03"></td>
-                <td><input type="text" class="time-input" data-field="eshaHanafi" value="${formatTime(existing.esha_hanafi_time)}" placeholder="19:15"></td>
-                <td><input type="text" class="time-input" data-field="eshaShafii" value="${formatTime(existing.esha_shafii_time)}" placeholder="19:10"></td>
-            </tr>
-        `;
-    }
-    
-    tbody.innerHTML = html;
-}
+const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                     'July', 'August', 'September', 'October', 'November', 'December'];
 
-async function savePrayerTimes() {
-    const rows = document.querySelectorAll('#prayerTimesBody tr');
-    const times = [];
-    
-    rows.forEach(row => {
-        const day = parseInt(row.dataset.day);
-        const month = parseInt(row.dataset.month);
-        
-        // Calculate day of year
-        const date = new Date(2024, month - 1, day);
-        const start = new Date(2024, 0, 0);
-        const diff = date - start;
-        const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
-        
-        const getValue = (field) => {
-            const input = row.querySelector(`input[data-field="${field}"]`);
-            return input ? input.value : '';
-        };
-        
-        // Only include if at least one time is filled
-        const sehri = getValue('sehri');
-        if (sehri) {
-            times.push({
-                dayOfYear,
-                month,
-                day,
-                sehri,
-                fajr: getValue('fajr'),
-                sunrise: getValue('sunrise'),
-                istiwa: getValue('istiwa'),
-                zohr: getValue('zohr'),
-                asrHanafi: getValue('asrHanafi'),
-                asrShafii: getValue('asrShafii'),
-                sunset: getValue('sunset'),
-                maghribHanafi: getValue('maghribHanafi'),
-                maghribShafii: getValue('maghribShafii'),
-                eshaHanafi: getValue('eshaHanafi'),
-                eshaShafii: getValue('eshaShafii')
-            });
-        }
-    });
-    
-    if (times.length === 0) {
-        alert('No prayer times to save. Please enter at least one day\'s times.');
+let calendarInitialized = false;
+
+async function initPrayerTimesCalendar() {
+    // Only initialize once
+    if (calendarInitialized) {
+        renderCalendar();
         return;
     }
     
-    const saveStatus = document.getElementById('saveStatus');
-    saveStatus.textContent = 'Saving...';
-    saveStatus.className = 'save-status';
+    // Load all prayer times data
+    await loadAllPrayerTimes();
+    
+    // Set up event listeners for month navigation
+    document.getElementById('prevMonth').addEventListener('click', () => changeMonth(-1));
+    document.getElementById('nextMonth').addEventListener('click', () => changeMonth(1));
+    
+    // Month select dropdown
+    document.getElementById('monthSelect').addEventListener('change', (e) => {
+        currentMonth = parseInt(e.target.value);
+        renderCalendar();
+    });
+    
+    // Delete button
+    document.getElementById('deleteTimesBtn').addEventListener('click', deleteDayTimes);
+    
+    // Form submit
+    document.getElementById('editPrayerForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        saveDayTimes();
+    });
+    
+    calendarInitialized = true;
+    
+    // Render current month
+    renderCalendar();
+}
+
+async function loadAllPrayerTimes() {
+    try {
+        // Load all prayer times for the year
+        const response = await apiRequest('/prayer-times/admin/all');
+        const times = await response.json();
+        
+        // Index by day of year
+        prayerTimesData = {};
+        times.forEach(t => {
+            prayerTimesData[t.day_of_year] = t;
+        });
+        
+        updateStats();
+    } catch (error) {
+        console.error('Error loading prayer times:', error);
+    }
+}
+
+function updateStats() {
+    const totalDays = 366; // Leap year
+    const filledDays = Object.keys(prayerTimesData).length;
+    const remaining = totalDays - filledDays;
+    const percentage = ((filledDays / totalDays) * 100).toFixed(1);
+    
+    document.getElementById('daysFilled').textContent = `${filledDays} / ${totalDays}`;
+    document.getElementById('daysRemaining').textContent = remaining;
+    
+    // Update progress bar
+    const progressFill = document.getElementById('progressFill');
+    progressFill.style.width = `${Math.max(parseFloat(percentage), 5)}%`; // Min 5% to show 0%
+    progressFill.textContent = `${percentage}%`;
+}
+
+function changeMonth(delta) {
+    currentMonth += delta;
+    if (currentMonth < 1) currentMonth = 12;
+    if (currentMonth > 12) currentMonth = 1;
+    document.getElementById('monthSelect').value = currentMonth;
+    renderCalendar();
+}
+
+function renderCalendar() {
+    const daysInMonth = new Date(2024, currentMonth, 0).getDate();
+    document.getElementById('monthSelect').value = currentMonth;
+    
+    const grid = document.getElementById('calendarGrid');
+    grid.innerHTML = '';
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dayOfYear = getDayOfYear(currentMonth, day);
+        const hasTimes = prayerTimesData[dayOfYear];
+        
+        const dayDiv = document.createElement('div');
+        dayDiv.className = `calendar-day ${hasTimes ? 'day-filled' : 'day-empty'}`;
+        dayDiv.innerHTML = `
+            <div class="day-number">${day}</div>
+            <div class="day-status">${hasTimes ? 'Filled' : 'Empty'}</div>
+        `;
+        dayDiv.addEventListener('click', () => openEditModal(day, dayOfYear));
+        
+        grid.appendChild(dayDiv);
+    }
+}
+
+function getDayOfYear(month, day) {
+    const date = new Date(2024, month - 1, day);
+    const start = new Date(2024, 0, 0);
+    const diff = date - start;
+    return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
+
+function openEditModal(day, dayOfYear) {
+    const existing = prayerTimesData[dayOfYear] || {};
+    
+    // Set modal title
+    document.getElementById('modalDateLabel').textContent = `${monthNames[currentMonth - 1]} ${day}`;
+    document.getElementById('modalDayOfYear').textContent = dayOfYear;
+    
+    // Store current editing context
+    document.getElementById('editDay').value = day;
+    document.getElementById('editMonth').value = currentMonth;
+    document.getElementById('editDayOfYear').value = dayOfYear;
+    
+    // Format time helper
+    const formatTime = (t) => t ? t.substring(0, 5) : '';
+    
+    // Fill form with existing times or empty
+    document.getElementById('editSehri').value = formatTime(existing.sehri_time);
+    document.getElementById('editFajr').value = formatTime(existing.fajr_time);
+    document.getElementById('editSunriseStart').value = formatTime(existing.sunrise_start_time || existing.sunrise_time);
+    document.getElementById('editSunriseEnd').value = formatTime(existing.sunrise_end_time);
+    document.getElementById('editIstiwaStart').value = formatTime(existing.istiwa_start_time || existing.istiwa_time);
+    document.getElementById('editIstiwaEnd').value = formatTime(existing.istiwa_end_time);
+    document.getElementById('editZohr').value = formatTime(existing.zohr_time);
+    document.getElementById('editAsrHanafi').value = formatTime(existing.asr_hanafi_time);
+    document.getElementById('editAsrShafii').value = formatTime(existing.asr_shafii_time);
+    document.getElementById('editSunsetStart').value = formatTime(existing.sunset_start_time || existing.sunset_time);
+    document.getElementById('editSunsetEnd').value = formatTime(existing.sunset_end_time);
+    document.getElementById('editMaghrib').value = formatTime(existing.maghrib_time || existing.maghrib_hanafi_time);
+    document.getElementById('editEshaHanafi').value = formatTime(existing.esha_hanafi_time);
+    document.getElementById('editEshaShafii').value = formatTime(existing.esha_shafii_time);
+    
+    // Show/hide delete button based on whether times exist
+    document.getElementById('deleteTimesBtn').style.display = existing.id ? 'inline-block' : 'none';
+    
+    // Show modal
+    document.getElementById('editPrayerModal').classList.remove('hidden');
+}
+
+function closeEditModal() {
+    document.getElementById('editPrayerModal').classList.add('hidden');
+}
+
+// Make closeEditModal globally available for onclick handlers
+window.closeEditModal = closeEditModal;
+
+async function saveDayTimes() {
+    const day = parseInt(document.getElementById('editDay').value);
+    const month = parseInt(document.getElementById('editMonth').value);
+    const dayOfYear = parseInt(document.getElementById('editDayOfYear').value);
+    
+    const maghribValue = document.getElementById('editMaghrib').value;
+    
+    const times = {
+        dayOfYear,
+        month,
+        day,
+        sehri: document.getElementById('editSehri').value,
+        fajr: document.getElementById('editFajr').value,
+        sunriseStart: document.getElementById('editSunriseStart').value,
+        sunriseEnd: document.getElementById('editSunriseEnd').value,
+        sunrise: document.getElementById('editSunriseStart').value, // For backward compatibility
+        istiwaStart: document.getElementById('editIstiwaStart').value,
+        istiwaEnd: document.getElementById('editIstiwaEnd').value,
+        istiwa: document.getElementById('editIstiwaStart').value, // For backward compatibility
+        zohr: document.getElementById('editZohr').value,
+        asrHanafi: document.getElementById('editAsrHanafi').value,
+        asrShafii: document.getElementById('editAsrShafii').value,
+        sunsetStart: document.getElementById('editSunsetStart').value,
+        sunsetEnd: document.getElementById('editSunsetEnd').value,
+        sunset: document.getElementById('editSunsetStart').value, // For backward compatibility
+        maghrib: maghribValue,
+        maghribHanafi: maghribValue, // Same for both
+        maghribShafii: maghribValue, // Same for both
+        eshaHanafi: document.getElementById('editEshaHanafi').value,
+        eshaShafii: document.getElementById('editEshaShafii').value
+    };
+    
+    // Validate at least one field is filled
+    const hasAnyTime = Object.values(times).some(v => v && typeof v === 'string' && v.includes(':'));
+    if (!hasAnyTime) {
+        alert('Please enter at least one prayer time.');
+        return;
+    }
     
     try {
         const response = await apiRequest('/prayer-times/bulk', {
             method: 'POST',
-            body: JSON.stringify({ times })
+            body: JSON.stringify({ times: [times] })
         });
         
-        const result = await response.json();
-        
         if (!response.ok) {
-            throw new Error(result.error || 'Save failed');
+            throw new Error('Save failed');
         }
         
-        saveStatus.textContent = `✓ Saved! ${result.inserted} new, ${result.updated} updated`;
-        saveStatus.className = 'save-status success';
+        // Reload data and update UI
+        await loadAllPrayerTimes();
+        renderCalendar();
+        closeEditModal();
+        
+        alert('Prayer times saved successfully!');
     } catch (error) {
-        saveStatus.textContent = `✗ Error: ${error.message}`;
-        saveStatus.className = 'save-status error';
+        alert('Error saving prayer times: ' + error.message);
+    }
+}
+
+async function deleteDayTimes() {
+    if (!confirm('Are you sure you want to delete prayer times for this day?')) {
+        return;
+    }
+    
+    const dayOfYear = parseInt(document.getElementById('editDayOfYear').value);
+    
+    const existing = prayerTimesData[dayOfYear];
+    if (!existing || !existing.id) {
+        alert('No times to delete.');
+        return;
+    }
+    
+    try {
+        const response = await apiRequest(`/prayer-times/${existing.id}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Delete failed');
+        }
+        
+        // Reload data and update UI
+        await loadAllPrayerTimes();
+        renderCalendar();
+        closeEditModal();
+        
+        alert('Prayer times deleted successfully!');
+    } catch (error) {
+        alert('Error deleting prayer times: ' + error.message);
     }
 }
 

@@ -76,6 +76,14 @@ router.get('/', async (req, res) => {
     // Build response based on madhab selection
     const isHanafi = madhab.toLowerCase() === 'hanafi';
     
+    // Get start/end times (with fallback for old data)
+    const sunriseStart = times.sunrise_start_time || times.sunrise_time;
+    const sunriseEnd = times.sunrise_end_time || times.sunrise_time;
+    const istiwaStart = times.istiwa_start_time || times.istiwa_time;
+    const istiwaEnd = times.istiwa_end_time || times.istiwa_time;
+    const sunsetStart = times.sunset_start_time || times.sunset_time;
+    const sunsetEnd = times.sunset_end_time || times.sunset_time;
+    
     const response = {
       date: targetDate.toISOString().split('T')[0],
       dayOfYear,
@@ -83,20 +91,34 @@ router.get('/', async (req, res) => {
       locationId: locationId || null,
       altitudeAdjustment,
       times: {
-        sehri: times.sehri_time,
+        // Apply sunrise adjustment to sehri so imsak shifts with dawn altitude changes
+        sehri: adjustTime(times.sehri_time, altitudeAdjustment.sunrise_adjustment),
         fajr: times.fajr_time,
-        sunrise: adjustTime(times.sunrise_time, altitudeAdjustment.sunrise_adjustment),
-        istiwa: times.istiwa_time,
+        sunrise: adjustTime(sunriseStart, altitudeAdjustment.sunrise_adjustment),
+        sunriseStart: adjustTime(sunriseStart, altitudeAdjustment.sunrise_adjustment),
+        sunriseEnd: adjustTime(sunriseEnd, altitudeAdjustment.sunrise_adjustment),
+        istiwa: istiwaStart,
+        istiwaStart: istiwaStart,
+        istiwaEnd: istiwaEnd,
         zohr: times.zohr_time,
         asr: isHanafi ? times.asr_hanafi_time : times.asr_shafii_time,
-        sunset: adjustTime(times.sunset_time, altitudeAdjustment.sunset_adjustment),
-        maghrib: isHanafi ? times.maghrib_hanafi_time : times.maghrib_shafii_time,
+        sunset: adjustTime(sunsetStart, altitudeAdjustment.sunset_adjustment),
+        sunsetStart: adjustTime(sunsetStart, altitudeAdjustment.sunset_adjustment),
+        sunsetEnd: adjustTime(sunsetEnd, altitudeAdjustment.sunset_adjustment),
+        // Apply sunset adjustment to maghrib/iftaar so it follows local horizon
+        maghrib: adjustTime(
+          isHanafi ? times.maghrib_hanafi_time : times.maghrib_shafii_time,
+          altitudeAdjustment.sunset_adjustment
+        ),
         esha: isHanafi ? times.esha_hanafi_time : times.esha_shafii_time
       },
       forbiddenTimes: {
-        afterSunrise: adjustTime(times.sunrise_time, altitudeAdjustment.sunrise_adjustment),
-        istiwa: times.istiwa_time,
-        beforeSunset: adjustTime(times.sunset_time, altitudeAdjustment.sunset_adjustment)
+        sunriseStart: adjustTime(sunriseStart, altitudeAdjustment.sunrise_adjustment),
+        sunriseEnd: adjustTime(sunriseEnd, altitudeAdjustment.sunrise_adjustment),
+        istiwaStart: istiwaStart,
+        istiwaEnd: istiwaEnd,
+        sunsetStart: adjustTime(sunsetStart, altitudeAdjustment.sunset_adjustment),
+        sunsetEnd: adjustTime(sunsetEnd, altitudeAdjustment.sunset_adjustment)
       }
     };
 
@@ -192,17 +214,7 @@ router.post('/bulk', verifyToken, requireRole('admin', 'editor'), [
   body('times.*.month').isInt({ min: 1, max: 12 }),
   body('times.*.day').isInt({ min: 1, max: 31 }),
   body('times.*.sehri').matches(/^\d{2}:\d{2}(:\d{2})?$/),
-  body('times.*.fajr').matches(/^\d{2}:\d{2}(:\d{2})?$/),
-  body('times.*.sunrise').matches(/^\d{2}:\d{2}(:\d{2})?$/),
-  body('times.*.istiwa').matches(/^\d{2}:\d{2}(:\d{2})?$/),
-  body('times.*.zohr').matches(/^\d{2}:\d{2}(:\d{2})?$/),
-  body('times.*.asrHanafi').matches(/^\d{2}:\d{2}(:\d{2})?$/),
-  body('times.*.asrShafii').matches(/^\d{2}:\d{2}(:\d{2})?$/),
-  body('times.*.sunset').matches(/^\d{2}:\d{2}(:\d{2})?$/),
-  body('times.*.maghribHanafi').matches(/^\d{2}:\d{2}(:\d{2})?$/),
-  body('times.*.maghribShafii').matches(/^\d{2}:\d{2}(:\d{2})?$/),
-  body('times.*.eshaHanafi').matches(/^\d{2}:\d{2}(:\d{2})?$/),
-  body('times.*.eshaShafii').matches(/^\d{2}:\d{2}(:\d{2})?$/)
+  body('times.*.fajr').matches(/^\d{2}:\d{2}(:\d{2})?$/)
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -221,20 +233,31 @@ router.post('/bulk', verifyToken, requireRole('admin', 'editor'), [
         [time.dayOfYear]
       );
 
+      // Handle both old format (sunrise) and new format (sunriseStart/sunriseEnd)
+      const sunriseStart = time.sunriseStart || time.sunrise;
+      const sunriseEnd = time.sunriseEnd || null;
+      const istiwaStart = time.istiwaStart || time.istiwa;
+      const istiwaEnd = time.istiwaEnd || null;
+      const sunsetStart = time.sunsetStart || time.sunset;
+      const sunsetEnd = time.sunsetEnd || null;
+
       const values = [
         time.dayOfYear,
         time.month,
         time.day,
         time.sehri,
         time.fajr,
-        time.sunrise,
-        time.istiwa,
+        sunriseStart,
+        sunriseEnd,
+        istiwaStart,
+        istiwaEnd,
         time.zohr,
         time.asrHanafi,
         time.asrShafii,
-        time.sunset,
-        time.maghribHanafi,
-        time.maghribShafii,
+        sunsetStart,
+        sunsetEnd,
+        time.maghribHanafi || time.maghrib,
+        time.maghribShafii || time.maghrib,
         time.eshaHanafi,
         time.eshaShafii,
         req.user.id
@@ -243,9 +266,12 @@ router.post('/bulk', verifyToken, requireRole('admin', 'editor'), [
       if (existing.length > 0) {
         await query(`
           UPDATE prayer_times SET
-            month = ?, day = ?, sehri_time = ?, fajr_time = ?, sunrise_time = ?,
-            istiwa_time = ?, zohr_time = ?, asr_hanafi_time = ?, asr_shafii_time = ?,
-            sunset_time = ?, maghrib_hanafi_time = ?, maghrib_shafii_time = ?,
+            month = ?, day = ?, sehri_time = ?, fajr_time = ?, 
+            sunrise_start_time = ?, sunrise_end_time = ?,
+            istiwa_start_time = ?, istiwa_end_time = ?,
+            zohr_time = ?, asr_hanafi_time = ?, asr_shafii_time = ?,
+            sunset_start_time = ?, sunset_end_time = ?,
+            maghrib_hanafi_time = ?, maghrib_shafii_time = ?,
             esha_hanafi_time = ?, esha_shafii_time = ?, created_by = ?
           WHERE day_of_year = ?
         `, [...values.slice(1), time.dayOfYear]);
@@ -253,11 +279,14 @@ router.post('/bulk', verifyToken, requireRole('admin', 'editor'), [
       } else {
         await query(`
           INSERT INTO prayer_times (
-            day_of_year, month, day, sehri_time, fajr_time, sunrise_time,
-            istiwa_time, zohr_time, asr_hanafi_time, asr_shafii_time,
-            sunset_time, maghrib_hanafi_time, maghrib_shafii_time,
+            day_of_year, month, day, sehri_time, fajr_time, 
+            sunrise_start_time, sunrise_end_time,
+            istiwa_start_time, istiwa_end_time,
+            zohr_time, asr_hanafi_time, asr_shafii_time,
+            sunset_start_time, sunset_end_time,
+            maghrib_hanafi_time, maghrib_shafii_time,
             esha_hanafi_time, esha_shafii_time, created_by
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, values);
         inserted++;
       }
@@ -295,6 +324,21 @@ router.get('/admin/month/:month', verifyToken, requireRole('admin', 'editor'), a
     res.json(prayerTimes);
   } catch (error) {
     logger.error('Error fetching month prayer times:', error);
+    res.status(500).json({ error: 'Failed to fetch prayer times' });
+  }
+});
+
+// Admin: Get all prayer times for the entire year (for calendar view)
+router.get('/admin/all', verifyToken, requireRole('admin', 'editor'), async (req, res) => {
+  try {
+    const prayerTimes = await query(
+      'SELECT * FROM prayer_times ORDER BY day_of_year',
+      []
+    );
+
+    res.json(prayerTimes);
+  } catch (error) {
+    logger.error('Error fetching all prayer times:', error);
     res.status(500).json({ error: 'Failed to fetch prayer times' });
   }
 });

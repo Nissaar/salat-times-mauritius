@@ -19,21 +19,28 @@ const elements = {
     locationName: document.getElementById('locationName'),
     locationDistrict: document.getElementById('locationDistrict'),
     clearLocation: document.getElementById('clearLocation'),
-    dateSelect: document.getElementById('dateSelect'),
+    madhabSelect: document.getElementById('madhabSelect'),
     displayDate: document.getElementById('displayDate'),
+    liveClock: document.getElementById('liveClock'),
     loadingSpinner: document.getElementById('loadingSpinner'),
     noDataMessage: document.getElementById('noDataMessage'),
     prayerTimesGrid: document.getElementById('prayerTimesGrid'),
-    altitudeNote: document.getElementById('altitudeNote'),
-    altitudeValue: document.getElementById('altitudeValue'),
+    calculatedLocation: document.getElementById('calculatedLocation'),
+    // Madhab labels in prayer bars
+    asrMadhab: document.getElementById('asrMadhab'),
+    maghribMadhab: document.getElementById('maghribMadhab'),
+    ishaMadhab: document.getElementById('ishaMadhab'),
     // Prayer time displays
     sehriTime: document.getElementById('sehriTime'),
     fajrTime: document.getElementById('fajrTime'),
-    sunriseTime: document.getElementById('sunriseTime'),
-    istiwaTime: document.getElementById('istiwaTime'),
+    sunriseStartTime: document.getElementById('sunriseStartTime'),
+    sunriseEndTime: document.getElementById('sunriseEndTime'),
+    istiwaStartTime: document.getElementById('istiwaStartTime'),
+    istiwaEndTime: document.getElementById('istiwaEndTime'),
     zohrTime: document.getElementById('zohrTime'),
     asrTime: document.getElementById('asrTime'),
-    sunsetTime: document.getElementById('sunsetTime'),
+    sunsetStartTime: document.getElementById('sunsetStartTime'),
+    sunsetEndTime: document.getElementById('sunsetEndTime'),
     maghribTime: document.getElementById('maghribTime'),
     eshaTime: document.getElementById('eshaTime')
 };
@@ -44,9 +51,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initializeApp() {
-    // Set today's date
-    elements.dateSelect.value = state.date;
+    // Set today's date and start clock
     updateDisplayDate();
+    startLiveClock();
 
     // Load saved preferences
     loadPreferences();
@@ -59,6 +66,22 @@ function initializeApp() {
         updateSelectedLocationDisplay();
         fetchPrayerTimes();
     }
+}
+
+function startLiveClock() {
+    function updateClock() {
+        const now = new Date();
+        const options = { 
+            hour: 'numeric', 
+            minute: '2-digit', 
+            second: '2-digit',
+            hour12: true 
+        };
+        elements.liveClock.textContent = now.toLocaleTimeString('en-US', options);
+    }
+    
+    updateClock();
+    setInterval(updateClock, 1000);
 }
 
 function setupEventListeners() {
@@ -87,7 +110,7 @@ function setupEventListeners() {
 
     // Close search results when clicking outside
     document.addEventListener('click', (e) => {
-        if (!e.target.closest('.search-container')) {
+        if (!e.target.closest('.location-wrapper')) {
             elements.searchResults.classList.remove('active');
         }
     });
@@ -97,26 +120,22 @@ function setupEventListeners() {
         clearLocation();
     });
 
-    // Date Change
-    elements.dateSelect.addEventListener('change', (e) => {
-        state.date = e.target.value;
-        updateDisplayDate();
+    // Madhab Change (select dropdown)
+    elements.madhabSelect.addEventListener('change', (e) => {
+        state.madhab = e.target.value;
+        updateMadhabLabels();
         savePreferences();
         if (state.selectedLocation) {
             fetchPrayerTimes();
         }
     });
+}
 
-    // Madhab Change
-    document.querySelectorAll('input[name="madhab"]').forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            state.madhab = e.target.value;
-            savePreferences();
-            if (state.selectedLocation) {
-                fetchPrayerTimes();
-            }
-        });
-    });
+function updateMadhabLabels() {
+    const madhab = state.madhab;
+    if (elements.asrMadhab) elements.asrMadhab.textContent = madhab;
+    if (elements.maghribMadhab) elements.maghribMadhab.textContent = madhab;
+    if (elements.ishaMadhab) elements.ishaMadhab.textContent = madhab;
 }
 
 // GPS Location
@@ -127,7 +146,6 @@ async function handleGPSClick() {
     }
 
     elements.gpsBtn.disabled = true;
-    elements.gpsBtn.textContent = 'Locating...';
 
     try {
         const position = await new Promise((resolve, reject) => {
@@ -165,12 +183,6 @@ async function handleGPSClick() {
         }
     } finally {
         elements.gpsBtn.disabled = false;
-        elements.gpsBtn.innerHTML = `
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
-            </svg>
-            Use My Location (GPS)
-        `;
     }
 }
 
@@ -235,8 +247,15 @@ function selectLocation(location) {
 function updateSelectedLocationDisplay() {
     if (state.selectedLocation) {
         elements.locationName.textContent = state.selectedLocation.name;
-        elements.locationDistrict.textContent = `${state.selectedLocation.district_name} • ${state.selectedLocation.altitude}m`;
+        elements.locationDistrict.textContent = `• ${state.selectedLocation.district_name}`;
         elements.selectedLocation.classList.remove('hidden');
+        elements.locationSearch.classList.add('hidden');
+        document.querySelector('.gps-btn').classList.add('hidden');
+        
+        // Update footer location text
+        if (elements.calculatedLocation) {
+            elements.calculatedLocation.textContent = state.selectedLocation.name;
+        }
     }
 }
 
@@ -244,9 +263,11 @@ function clearLocation() {
     state.selectedLocation = null;
     state.prayerTimes = null;
     elements.selectedLocation.classList.add('hidden');
+    elements.locationSearch.classList.remove('hidden');
+    elements.locationSearch.value = '';
+    document.querySelector('.gps-btn').classList.remove('hidden');
     elements.prayerTimesGrid.classList.add('hidden');
     elements.noDataMessage.classList.remove('hidden');
-    elements.altitudeNote.classList.add('hidden');
     savePreferences();
 }
 
@@ -286,7 +307,7 @@ async function fetchPrayerTimes() {
 function displayPrayerTimes(data) {
     const times = data.times;
 
-    // Format time (remove seconds if present)
+    // Format time in 24-hour format
     const formatTime = (time) => {
         if (!time) return '--:--';
         const parts = time.split(':');
@@ -295,23 +316,24 @@ function displayPrayerTimes(data) {
 
     elements.sehriTime.textContent = formatTime(times.sehri);
     elements.fajrTime.textContent = formatTime(times.fajr);
-    elements.sunriseTime.textContent = formatTime(times.sunrise);
-    elements.istiwaTime.textContent = formatTime(times.istiwa);
+    
+    // Sunrise (start and end)
+    elements.sunriseStartTime.textContent = formatTime(times.sunriseStart || times.sunrise);
+    elements.sunriseEndTime.textContent = formatTime(times.sunriseEnd || times.sunrise);
+    
+    // Istiwa (start and end)
+    elements.istiwaStartTime.textContent = formatTime(times.istiwaStart || times.istiwa);
+    elements.istiwaEndTime.textContent = formatTime(times.istiwaEnd || times.istiwa);
+    
     elements.zohrTime.textContent = formatTime(times.zohr);
     elements.asrTime.textContent = formatTime(times.asr);
-    elements.sunsetTime.textContent = formatTime(times.sunset);
+    
+    // Sunset (start and end)
+    elements.sunsetStartTime.textContent = formatTime(times.sunsetStart || times.sunset);
+    elements.sunsetEndTime.textContent = formatTime(times.sunsetEnd || times.sunset);
+    
     elements.maghribTime.textContent = formatTime(times.maghrib);
     elements.eshaTime.textContent = formatTime(times.esha);
-
-    // Show altitude adjustment note if applicable
-    if (data.altitudeAdjustment && 
-        (data.altitudeAdjustment.sunrise_adjustment !== 0 || 
-         data.altitudeAdjustment.sunset_adjustment !== 0)) {
-        elements.altitudeValue.textContent = state.selectedLocation.altitude;
-        elements.altitudeNote.classList.remove('hidden');
-    } else {
-        elements.altitudeNote.classList.add('hidden');
-    }
 
     elements.noDataMessage.classList.add('hidden');
     elements.prayerTimesGrid.classList.remove('hidden');
@@ -329,7 +351,7 @@ function showLoading(show) {
 
 function updateDisplayDate() {
     const date = new Date(state.date);
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const options = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
     elements.displayDate.textContent = date.toLocaleDateString('en-US', options);
 }
 
@@ -351,9 +373,10 @@ function loadPreferences() {
             }
             if (prefs.madhab) {
                 state.madhab = prefs.madhab;
-                document.querySelector(`input[name="madhab"][value="${prefs.madhab}"]`).checked = true;
+                elements.madhabSelect.value = prefs.madhab;
             }
         }
+        updateMadhabLabels();
     } catch (error) {
         console.error('Error loading preferences:', error);
     }
