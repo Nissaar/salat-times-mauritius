@@ -1,0 +1,97 @@
+services:
+  # MariaDB Database
+  db:
+    image: mariadb:10.11
+    container_name: salat_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-salat_root_2024}
+      MYSQL_DATABASE: ${DB_NAME:-salat_times}
+      MYSQL_USER: ${DB_USER:-salat_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-salat_pass_2024}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./database/init:/docker-entrypoint-initdb.d
+    ports:
+      - "3306:3306"
+    networks:
+      - salat_network
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # phpMyAdmin for database management
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: salat_phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: ${DB_USER:-salat_user}
+      PMA_PASSWORD: ${DB_PASSWORD:-salat_pass_2024}
+      UPLOAD_LIMIT: 100M
+    ports:
+      - "8080:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - salat_network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: salat_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-salat_times}
+      DB_USER: ${DB_USER:-salat_user}
+      DB_PASSWORD: ${DB_PASSWORD:-salat_pass_2024}
+      JWT_SECRET: ${JWT_SECRET:-your_super_secret_jwt_key_change_in_production}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@salattimes.mu}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@2024!}
+    ports:
+      - "3001:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - salat_network
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: salat_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    networks:
+      - salat_network
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+
+volumes:
+  mariadb_data:
+
+networks:
+  salat_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.0.0/16

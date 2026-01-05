@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Salat Times Mauritius</title>
+    <link rel="icon" href="../images/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="css/admin.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Login Modal -->
+        <div id="loginModal" class="modal">
+            <div class="modal-content login-modal">
+                <h2>🔐 Admin Login</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" required placeholder="admin@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" required placeholder="••••••••">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Login</button>
+                    <p class="login-error hidden" id="loginError"></p>
+                </form>
+                <div class="login-footer">
+                    <p>Need access? <a href="#" id="showRegister">Request Registration</a></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Registration Modal -->
+        <div id="registerModal" class="modal hidden">
+            <div class="modal-content">
+                <h2>📝 Request Access</h2>
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="regFullName">Full Name</label>
+                        <input type="text" id="regFullName" required placeholder="Your full name">
+                    </div>
+                    <div class="form-group">
+                        <label for="regEmail">Email</label>
+                        <input type="email" id="regEmail" required placeholder="your@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="regPassword">Password</label>
+                        <input type="password" id="regPassword" required minlength="8" placeholder="Minimum 8 characters">
+                    </div>
+                    <div class="form-group">
+                        <label for="regReason">Why do you need access? (Optional)</label>
+                        <textarea id="regReason" rows="3" placeholder="Briefly explain..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Submit Request</button>
+                    <p class="form-message hidden" id="registerMessage"></p>
+                </form>
+                <div class="login-footer">
+                    <p><a href="#" id="backToLogin">← Back to Login</a></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Dashboard -->
+        <div id="adminDashboard" class="hidden">
+            <!-- Header -->
+            <header class="admin-header">
+                <div class="header-content">
+                    <div class="logo">
+                        <a href="../">← Back to Site</a>
+                        <h1>Admin Panel</h1>
+                    </div>
+                    <div class="user-info">
+                        <span id="userName">Admin</span>
+                        <button id="logoutBtn" class="btn btn-small btn-outline">Logout</button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Navigation Tabs -->
+            <nav class="admin-nav">
+                <button class="nav-tab active" data-tab="dashboard">📊 Dashboard</button>
+                <button class="nav-tab" data-tab="prayer-times">🕌 Prayer Times</button>
+                <button class="nav-tab" data-tab="users">👥 Users</button>
+                <button class="nav-tab" data-tab="adjustments">⛰️ Adjustments</button>
+            </nav>
+
+            <!-- Content Area -->
+            <main class="admin-content">
+                <!-- Dashboard Tab -->
+                <section id="dashboardTab" class="tab-content active">
+                    <h2>Dashboard Overview</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">👥</div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="statUsers">-</span>
+                                <span class="stat-label">Total Users</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">📍</div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="statLocations">-</span>
+                                <span class="stat-label">Locations</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🕌</div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="statPrayerTimes">-</span>
+                                <span class="stat-label">Prayer Time Entries</span>
+                            </div>
+                        </div>
+                        <div class="stat-card warning">
+                            <div class="stat-icon">⏳</div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="statPending">-</span>
+                                <span class="stat-label">Pending Requests</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pending Registrations -->
+                    <div class="card" id="pendingCard">
+                        <h3>⏳ Pending Registration Requests</h3>
+                        <div id="pendingList" class="pending-list">
+                            <p class="no-data">No pending requests</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Prayer Times Tab -->
+                <section id="prayer-timesTab" class="tab-content">
+                    <h2>Manage Prayer Times</h2>
+                    
+                    <div class="card">
+                        <h3>📅 Select Month to Edit</h3>
+                        <div class="form-row">
+                            <select id="monthSelect" class="form-control">
+                                <option value="1">January</option>
+                                <option value="2">February</option>
+                                <option value="3">March</option>
+                                <option value="4">April</option>
+                                <option value="5">May</option>
+                                <option value="6">June</option>
+                                <option value="7">July</option>
+                                <option value="8">August</option>
+                                <option value="9">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                            <button id="loadMonthBtn" class="btn btn-primary">Load Month</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>⏰ Enter Prayer Times</h3>
+                        <p class="help-text">Enter times in HH:MM format (24-hour). Times repeat yearly based on day of year.</p>
+                        
+                        <div class="table-container">
+                            <table class="data-table" id="prayerTimesTable">
+                                <thead>
+                                    <tr>
+                                        <th>Day</th>
+                                        <th>Sehri</th>
+                                        <th>Fajr</th>
+                                        <th>Sunrise</th>
+                                        <th>Istiwa</th>
+                                        <th>Zohr</th>
+                                        <th>Asr (H)</th>
+                                        <th>Asr (S)</th>
+                                        <th>Sunset</th>
+                                        <th>Maghrib (H)</th>
+                                        <th>Maghrib (S)</th>
+                                        <th>Esha (H)</th>
+                                        <th>Esha (S)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="prayerTimesBody">
+                                    <!-- Rows will be generated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button id="savePrayerTimesBtn" class="btn btn-primary">💾 Save All Times</button>
+                            <span id="saveStatus" class="save-status"></span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Users Tab -->
+                <section id="usersTab" class="tab-content">
+                    <h2>Manage Users</h2>
+                    
+                    <div class="card">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Last Login</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersBody">
+                                <tr><td colspan="6" class="no-data">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Adjustments Tab -->
+                <section id="adjustmentsTab" class="tab-content">
+                    <h2>Altitude Adjustments</h2>
+                    <p class="help-text">Configure sunrise/sunset time adjustments based on altitude ranges.</p>
+                    
+                    <div class="card">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Altitude Range (m)</th>
+                                    <th>Sunrise Adj. (min)</th>
+                                    <th>Sunset Adj. (min)</th>
+                                    <th>Description</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adjustmentsBody">
+                                <tr><td colspan="5" class="no-data">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/admin.js"></script>
+</body>
+</html>

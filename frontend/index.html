@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Prayer times for all locations in Mauritius - Salat Times Mauritius">
+    <title>Salat Times Mauritius</title>
+    <link rel="icon" href="images/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <svg class="logo-icon" viewBox="0 0 100 100" fill="currentColor">
+                        <path d="M50 5C25.2 5 5 25.2 5 50s20.2 45 45 45 45-20.2 45-45S74.8 5 50 5zm0 80c-19.3 0-35-15.7-35-35s15.7-35 35-35c7.5 0 14.4 2.4 20.1 6.4C58.3 28.7 50 40.2 50 53.5c0 11.5 5.8 21.6 14.6 27.6-4.5 2.5-9.6 3.9-14.6 3.9z"/>
+                    </svg>
+                    <h1>Salat Times Mauritius</h1>
+                </div>
+                <nav class="header-nav">
+                    <a href="admin/" class="admin-link">Admin Panel</a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Location Selection Card -->
+            <section class="card location-card">
+                <h2>📍 Select Your Location</h2>
+                
+                <div class="location-options">
+                    <button id="gpsBtn" class="btn btn-primary">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
+                        </svg>
+                        Use My Location (GPS)
+                    </button>
+                    
+                    <div class="divider">
+                        <span>or</span>
+                    </div>
+                    
+                    <div class="search-container">
+                        <input type="text" id="locationSearch" class="search-input" placeholder="Search village or city..." autocomplete="off">
+                        <div id="searchResults" class="search-results"></div>
+                    </div>
+                </div>
+
+                <div id="selectedLocation" class="selected-location hidden">
+                    <div class="location-info">
+                        <strong id="locationName">-</strong>
+                        <span id="locationDistrict">-</span>
+                    </div>
+                    <button id="clearLocation" class="btn btn-small btn-outline">Change</button>
+                </div>
+            </section>
+
+            <!-- Settings Card -->
+            <section class="card settings-card">
+                <h2>⚙️ Settings</h2>
+                
+                <div class="setting-row">
+                    <label>Madhab (School of Jurisprudence)</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="madhab" value="hanafi" checked>
+                            <span>Hanafi</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="madhab" value="shafii">
+                            <span>Shafi'i</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label for="dateSelect">Date</label>
+                    <input type="date" id="dateSelect" class="date-input">
+                </div>
+            </section>
+
+            <!-- Prayer Times Card -->
+            <section class="card prayer-times-card">
+                <h2>🕌 Prayer Times</h2>
+                <p id="displayDate" class="display-date">-</p>
+
+                <div id="loadingSpinner" class="loading hidden">
+                    <div class="spinner"></div>
+                    <p>Loading prayer times...</p>
+                </div>
+
+                <div id="noDataMessage" class="no-data hidden">
+                    <p>Please select a location to view prayer times.</p>
+                </div>
+
+                <div id="prayerTimesGrid" class="prayer-times-grid hidden">
+                    <!-- Sehri -->
+                    <div class="prayer-time-item sehri">
+                        <div class="prayer-icon">🌙</div>
+                        <div class="prayer-info">
+                            <span class="prayer-name">Sehri End</span>
+                            <span class="prayer-description">Imsak - Stop eating</span>
+                        </div>
+                        <div class="prayer-time" id="sehriTime">--:--</div>
+                    </div>
+
+                    <!-- Fajr -->
+                    <div class="prayer-time-item fajr">
+                        <div class="prayer-icon">🌅</div>
+                        <div class="prayer-info">
+                            <span class="prayer-name">Fajr</span>
+                            <span class="prayer-description">Dawn prayer</span>
+                        </div>
+                        <div class="prayer-time" id="fajrTime">--:--</div>
+                    </div>
+
+                    <!-- Sunrise (forbidden) -->
+                    <div class="prayer-time-item forbidden sunrise">
+                        <div class="prayer-icon">☀️</div>
+                        <div class="prayer-info">
+                            <span class="prayer-name">Sunrise</span>
+                            <span class="prayer-description">⚠️ Prayer forbidden</span>
+                        </div>
+                        <div class="prayer-time" id="sunriseTime">--:--</div>
+                    </div>
+
+                    <!-- Istiwa (forbidden) -->
+                    <div class="prayer-time-item forbidden istiwa">
+                        <div class="prayer-icon">🔆</div>
+                        <div class="prayer-info">
+                            <span class="prayer-name">Istiwa/Zawaal</span>
+                            <span class="prayer-description">⚠️ Prayer forbidden (solar noon)</span>
+                        </div>
+                        <div class="prayer-time" id="istiwaTime">--:--</div>
+                    </div>
+
+                    <!-- Zohr -->
+                    <div class="prayer-time-item zohr">
+                        <div class="prayer-icon">🌤️</div>
+                        <div class="prayer-info">
+                            <span class="prayer-name">Zohr/Dhuhr</span>
+                            <span class="prayer-description">Noon prayer</span>
+                        </div>
+                        <div class="prayer-time" id="zohrTime">--:--</div>
+                    </div>
+
+                    <!-- Asr -->
+                    <div class="prayer-time-item asr">
+                        <div class="prayer-icon">🌇</div>
+                        <div class="prayer-info">
+                            <span class="prayer-name">Asr</span>
+                            <span class="prayer-description">Afternoon prayer</span>
+                        </div>
+                        <div class="prayer-time" id="asrTime">--:--</div>
+                    </div>
+
+                    <!-- Sunset (forbidden) -->
+                    <div class="prayer-time-item forbidden sunset">
+                        <div class="prayer-icon">🌅</div>
+                        <div class="prayer-info">
+                            <span class="prayer-name">Sunset</span>
+                            <span class="prayer-description">⚠️ Prayer forbidden</span>
+                        </div>
+                        <div class="prayer-time" id="sunsetTime">--:--</div>
+                    </div>
+
+                    <!-- Maghrib -->
+                    <div class="prayer-time-item maghrib">
+                        <div class="prayer-icon">🌆</div>
+                        <div class="prayer-info">
+                            <span class="prayer-name">Maghrib / Iftar</span>
+                            <span class="prayer-description">Evening prayer / Break fast</span>
+                        </div>
+                        <div class="prayer-time" id="maghribTime">--:--</div>
+                    </div>
+
+                    <!-- Esha -->
+                    <div class="prayer-time-item esha">
+                        <div class="prayer-icon">🌃</div>
+                        <div class="prayer-info">
+                            <span class="prayer-name">Esha</span>
+                            <span class="prayer-description">Night prayer</span>
+                        </div>
+                        <div class="prayer-time" id="eshaTime">--:--</div>
+                    </div>
+                </div>
+
+                <div id="altitudeNote" class="altitude-note hidden">
+                    <p>⛰️ Times adjusted for altitude: <span id="altitudeValue">0</span>m</p>
+                </div>
+            </section>
+
+            <!-- Info Card -->
+            <section class="card info-card">
+                <h2>ℹ️ Information</h2>
+                <div class="info-content">
+                    <p><strong>Hanafi vs Shafi'i:</strong> The main difference is in Asr prayer timing. Hanafi calculates Asr when shadow is twice the object length, while Shafi'i calculates when shadow equals object length.</p>
+                    <p><strong>Forbidden Times:</strong> Prayer is forbidden during sunrise, solar noon (Istiwa/Zawaal), and sunset. These are marked with ⚠️.</p>
+                    <p><strong>Altitude Adjustment:</strong> Prayer times are adjusted based on your location's altitude for more accurate sunrise/sunset times.</p>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2024 Salat Times Mauritius. For guidance only - verify with local mosque.</p>
+        </footer>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
