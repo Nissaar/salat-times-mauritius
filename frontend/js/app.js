@@ -22,6 +22,10 @@ const elements = {
     madhabSelect: document.getElementById('madhabSelect'),
     displayDate: document.getElementById('displayDate'),
     liveClock: document.getElementById('liveClock'),
+    datePicker: document.getElementById('datePicker'),
+    prevDayBtn: document.getElementById('prevDayBtn'),
+    nextDayBtn: document.getElementById('nextDayBtn'),
+    todayBtn: document.getElementById('todayBtn'),
     loadingSpinner: document.getElementById('loadingSpinner'),
     noDataMessage: document.getElementById('noDataMessage'),
     prayerTimesGrid: document.getElementById('prayerTimesGrid'),
@@ -54,6 +58,10 @@ function initializeApp() {
     // Set today's date and start clock
     updateDisplayDate();
     startLiveClock();
+
+    // Initialize date picker with today's date
+    elements.datePicker.value = state.date;
+    elements.datePicker.max = '2099-12-31'; // Allow future dates
 
     // Load saved preferences
     loadPreferences();
@@ -125,6 +133,32 @@ function setupEventListeners() {
         state.madhab = e.target.value;
         updateMadhabLabels();
         savePreferences();
+        if (state.selectedLocation) {
+            fetchPrayerTimes();
+        }
+    });
+
+    // Date Navigation
+    elements.datePicker.addEventListener('change', (e) => {
+        state.date = e.target.value;
+        updateDisplayDate();
+        if (state.selectedLocation) {
+            fetchPrayerTimes();
+        }
+    });
+
+    elements.prevDayBtn.addEventListener('click', () => {
+        changeDate(-1);
+    });
+
+    elements.nextDayBtn.addEventListener('click', () => {
+        changeDate(1);
+    });
+
+    elements.todayBtn.addEventListener('click', () => {
+        state.date = new Date().toISOString().split('T')[0];
+        elements.datePicker.value = state.date;
+        updateDisplayDate();
         if (state.selectedLocation) {
             fetchPrayerTimes();
         }
@@ -353,6 +387,18 @@ function updateDisplayDate() {
     const date = new Date(state.date);
     const options = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
     elements.displayDate.textContent = date.toLocaleDateString('en-US', options);
+}
+
+function changeDate(days) {
+    const currentDate = new Date(state.date);
+    currentDate.setDate(currentDate.getDate() + days);
+    state.date = currentDate.toISOString().split('T')[0];
+    elements.datePicker.value = state.date;
+    updateDisplayDate();
+    
+    if (state.selectedLocation) {
+        fetchPrayerTimes();
+    }
 }
 
 // Local Storage

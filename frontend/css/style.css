@@ -153,6 +153,93 @@ body {
     margin-bottom: 1rem;
 }
 
+/* Date Navigation Card */
+.date-navigation-card {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.date-navigation {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.date-nav-btn {
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--primary-color);
+    border-radius: var(--radius-sm);
+    background: white;
+    color: var(--primary-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    padding: 0;
+}
+
+.date-nav-btn svg {
+    width: 24px;
+    height: 24px;
+}
+
+.date-nav-btn:hover:not(:disabled) {
+    background: var(--primary-color);
+    color: white;
+}
+
+.date-nav-btn:active {
+    transform: scale(0.95);
+}
+
+.date-picker {
+    flex: 1;
+    padding: 0.6rem 0.8rem;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 0.95rem;
+    transition: var(--transition);
+    cursor: pointer;
+    background: white;
+    color: var(--text-primary);
+}
+
+.date-picker:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.today-btn {
+    padding: 0.6rem 1.2rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+
+.today-btn:hover {
+    background: var(--primary-dark);
+}
+
+.today-btn:active {
+    transform: scale(0.98);
+}
+
 .setting-item {
     margin-bottom: 0.75rem;
 }

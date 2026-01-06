@@ -34,6 +34,24 @@
                 <p id="liveClock" class="live-clock">--:--:-- --</p>
             </div>
 
+            <!-- Date Navigation -->
+            <section class="card date-navigation-card">
+                <div class="date-navigation">
+                    <button id="prevDayBtn" class="date-nav-btn" title="Previous Day">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                        </svg>
+                    </button>
+                    <input type="date" id="datePicker" class="date-picker">
+                    <button id="nextDayBtn" class="date-nav-btn" title="Next Day">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+                        </svg>
+                    </button>
+                </div>
+                <button id="todayBtn" class="today-btn">Today</button>
+            </section>
+
             <!-- Settings Card (Location + Madhab) -->
             <section class="card settings-card">
                 <div class="setting-item">
